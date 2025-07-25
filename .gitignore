@@ -1,0 +1,18 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Jupyter outputs
+.ipynb_checkpoints/
+*.csv
+*.pkl
+*.h5
+
+# Environment folders (just in case)
+.env/
+.venv/
+
+# Data + logs
+/data/
+logs/
