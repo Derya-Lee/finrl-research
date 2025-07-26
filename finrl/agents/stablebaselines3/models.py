@@ -34,19 +34,27 @@ class DRLAgent:
     @staticmethod
     def DRL_prediction(model, environment, evaluate=False):
         obs = environment.reset()
-        account_memory = []
         while True:
             action, _states = model.predict(obs)
             obs, reward, done, info = environment.step(action)
             if done:
                 break
+
         if evaluate:
-            daily_returns = pd.Series(environment.envs[0].asset_memory).pct_change().dropna()
-            sharpe = (252**0.5) * daily_returns.mean() / daily_returns.std()
+            df_account_value = environment.envs[0].save_asset_memory()
+            daily_returns = df_account_value["account_value"].pct_change().dropna()
+
+            mean_return = daily_returns.mean()
+            std_return = daily_returns.std()
+            sharpe = (252 ** 0.5) * mean_return / std_return if std_return != 0 else np.nan
+
+            print(f"\n📊 Sharpe Debug:")
+            print(f"  ➤ Mean return: {mean_return:.6f}")
+            print(f"  ➤ Std return : {std_return:.6f}")
+            print(f"  ➤ Sharpe     : {sharpe:.3f}")
+
             return sharpe
         else:
-            df_result = pd.DataFrame({
-                'date': range(len(environment.envs[0].asset_memory)),
-                'account_value': environment.envs[0].asset_memory
-            })
+            df_result = environment.envs[0].save_asset_memory()
             return df_result
+
