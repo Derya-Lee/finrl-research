@@ -34,41 +34,20 @@ def convert_daily_return_to_pyfolio_ts(df):
     return pd.Series(strategy_ret["daily_return"].values, index=strategy_ret.index)
 
 
-def backtest_stats(account_value, value_col_name="account_value"):
-    dr_test = get_daily_return(account_value, value_col_name=value_col_name)
-    qs_stats = qs.stats(dr_test)
-    print(qs_stats)
-    return qs_stats
+def backtest_stats_qs(account_value, value_col_name="account_value"):
+    import quantstats as qs
+    import pandas as pd
+
+    # convert account value to daily return series
+    df = account_value.copy()
+    df = df.set_index(df.columns[0])
+    df.index = pd.to_datetime(df.index)
+    df = df.sort_index()
+    daily_return = df[value_col_name].pct_change().dropna()
     
     # show quantstats reports
-    #print("----------QuantStats Performance----------")
-    #return qs.reports.metrics(daily_return)
-
-
-#def backtest_plot(
-#    account_value,
-#    baseline_start=config.TRADE_START_DATE,
-#    baseline_end=config.TRADE_END_DATE,
-#    baseline_ticker="^DJI",
-#    value_col_name="account_value",
-#):
-#    df = deepcopy(account_value)
-#    df["date"] = pd.to_datetime(df["date"])
-#    test_returns = get_daily_return(df, value_col_name=value_col_name)
-#
-#    baseline_df = get_baseline(
-#        ticker=baseline_ticker, start=baseline_start, end=baseline_end
-#    )
-#
-#    baseline_df["date"] = pd.to_datetime(baseline_df["date"], format="%Y-%m-%d")
-#    baseline_df = pd.merge(df[["date"]], baseline_df, how="left", on="date")
-#    baseline_df = baseline_df.fillna(method="ffill").fillna(method="bfill")
-#    baseline_returns = get_daily_return(baseline_df, value_col_name="close")
-#
-#    with pyfolio.plotting.plotting_context(font_scale=1.1):
-#        pyfolio.create_full_tear_sheet(
-#            returns=test_returns, benchmark_rets=baseline_returns, set_context=False
-#        )
+    print("----------QuantStats Performance----------")
+    return qs.reports.metrics(daily_return)
 
 def backtest_plot(
     account_value,
