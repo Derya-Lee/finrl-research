@@ -36,44 +36,47 @@ class DRLAgent:
         obs = environment.reset()
         account_memory = []
 
+        step_counter = 0
         while True:
             action, _states = model.predict(obs)
             obs, reward, done, info = environment.step(action)
 
-            total_asset = environment.envs[0].total_asset  # or env.cash + stocks * price
-            print(f"  total_asset: {total_asset}")
+            total_asset = environment.envs[0].total_asset  # tracked inside env
             account_memory.append(total_asset)
+
+            # Print debug for first 5 and last 5 steps only
+            if step_counter < 5 or done:
+                print(f" Step {step_counter + 1} | Asset: {total_asset:,.2f}")
+            step_counter += 1
+
             if done:
                 break
 
-                        # not using the moemory! -> daily_returns = df_account_value["account_value"].pct_change().dropna()
-
-
+        # EVALUATE MODE — SHARPE CALCULATION
         if evaluate:
-            # Notes: for paper trading environments like Alpaca or live trade tracking:
-            # df_account_value = environment.envs[0].save_asset_memory()
-            # replace with account_memory
-
             if len(account_memory) < 2:
-                print("Not enough data to calculate Sharpe ratio.")
+                print(" Not enough data to calculate Sharpe ratio.")
                 return float('nan')
 
             daily_returns = pd.Series(account_memory).pct_change().dropna()
 
             if daily_returns.std() == 0 or daily_returns.empty:
-                print(" Sharpe Debug: No volatility or data — returning NaN")
+                print(" Sharpe Debug: No volatility or insufficient data.")
                 return float('nan')
 
             sharpe = (252**0.5) * daily_returns.mean() / daily_returns.std()
             print(" Sharpe Debug:")
-            print(f"  ➤Mean return: {daily_returns.mean():.5f}")
-            print(f"  Std return : {daily_returns.std():.5f}")
-            print(f"  Sharpe     : {sharpe:.5f}")
+            print(f"   Mean return: {daily_returns.mean():.5f}")
+            print(f"   Std return : {daily_returns.std():.5f}")
+            print(f"   Sharpe     : {sharpe:.5f}")
             return sharpe
+
+        # PREDICTION MODE — RETURN FULL ACCOUNT VALUE DATAFRAME
         else:
             df_result = pd.DataFrame({
                 'date': range(len(account_memory)),
                 'account_value': account_memory
             })
             return df_result
+
 
