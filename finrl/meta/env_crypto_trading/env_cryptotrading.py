@@ -27,22 +27,22 @@ class CryptoTradingEnv(gym.Env):
         # )
 
         self.reset()
-
+      
     def reset(self):
         self.day = 0
         self.data = self.df.loc[self.df.date == self.df.date.unique()[self.day]]
         self.terminal = False
-        self.state = [self.initial_amount] + \
-             [0] * self.crypto_dim + \
-             self.data.close.values.tolist() + \
-             sum([self.data[tech].values.tolist() for tech in self.tech_indicator_list], [])
-        # Debug check:
-        # print("State length:", len(self.state))
-        # print("Observation space:", self.observation_space.shape)
 
-        self.asset_memory = [self.initial_amount]
-        self.cost = 0
-        self.trades = 0
+        self.cash = self.initial_amount
+        self.stocks = np.zeros(self.crypto_dim)  # no holdings at start
+        self.total_asset = self.initial_amount
+        self.asset_memory = [self.total_asset]
+
+        self.state = [self.total_asset] + \
+                    list(self.stocks) + \
+                    self.data.close.values.tolist() + \
+                    sum([self.data[tech].values.tolist() for tech in self.tech_indicator_list], [])
+
         return np.array(self.state)
 
     def step(self, actions):
@@ -50,23 +50,42 @@ class CryptoTradingEnv(gym.Env):
         if self.terminal:
             return self.state, self._reward(), self.terminal, {}
 
+        prices = self.data.close.values
         actions = actions * self.hmax
-        begin_total_asset = self._get_total_asset()
 
-        self._trade(actions)
+        # === SELL ===
+        for i in np.where(actions < 0)[0]:
+            sell_amount = min(self.stocks[i], -actions[i])
+            self.stocks[i] -= sell_amount
+            self.cash += prices[i] * sell_amount * (1 - self.sell_cost_pct)
 
+        # === BUY ===
+        for i in np.where(actions > 0)[0]:
+            max_buy = self.cash // (prices[i] * (1 + self.buy_cost_pct))
+            buy_amount = min(max_buy, actions[i])
+            self.stocks[i] += buy_amount
+            self.cash -= prices[i] * buy_amount * (1 + self.buy_cost_pct)
+
+        # === Advance to Next Day ===
         self.day += 1
         self.data = self.df.loc[self.df.date == self.df.date.unique()[self.day]]
-        self.state = [self._get_total_asset()] + \
-                     [0] * self.crypto_dim + \
-                     self.data.close.values.tolist() + \
-                     sum([self.data[tech].values.tolist() for tech in self.tech_indicator_list], [])
+        prices = self.data.close.values
 
-        end_total_asset = self._get_total_asset()
-        reward = (end_total_asset - begin_total_asset) * self.reward_scaling
-        self.asset_memory.append(end_total_asset)
+        prev_asset = self.total_asset
+        self.total_asset = self.cash + np.sum(self.stocks * prices)
+        reward = (self.total_asset - prev_asset) * self.reward_scaling
+        self.asset_memory.append(self.total_asset)
+
+        self.state = [self.total_asset] + \
+                    list(self.stocks) + \
+                    prices.tolist() + \
+                    sum([self.data[tech].values.tolist() for tech in self.tech_indicator_list], [])
+
+        # === Optional Debug Logging ===
+       # print(f" Day {self.day} | Cash: {self.cash:.2f} | Stocks: {self.stocks.round(2)} | Asset: {self.total_asset:.2f} | Reward: {reward:.5f}")
 
         return np.array(self.state), reward, self.terminal, {}
+
 
     def _get_total_asset(self):
         return self.state[0]  # simply return current balance (can be expanded)
@@ -78,3 +97,14 @@ class CryptoTradingEnv(gym.Env):
         # Simplified logic for demonstration — can be expanded to simulate buying/selling
         self.trades += 1
         self.cost += np.sum(np.abs(actions)) * self.buy_cost_pct
+        
+    def save_asset_memory(self):
+        """
+        Return account value over time for analysis.
+        """
+        date_list = list(self.df.date.unique())[:len(self.asset_memory)]
+        df_account_value = pd.DataFrame({
+            "date": date_list,
+            "account_value": self.asset_memory
+        })
+        return df_account_value

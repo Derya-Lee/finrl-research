@@ -34,27 +34,46 @@ class DRLAgent:
     @staticmethod
     def DRL_prediction(model, environment, evaluate=False):
         obs = environment.reset()
+        account_memory = []
+
         while True:
             action, _states = model.predict(obs)
             obs, reward, done, info = environment.step(action)
+
+            total_asset = environment.envs[0].total_asset  # or env.cash + stocks * price
+            print(f"  total_asset: {total_asset}")
+            account_memory.append(total_asset)
             if done:
                 break
 
+                        # not using the moemory! -> daily_returns = df_account_value["account_value"].pct_change().dropna()
+
+
         if evaluate:
-            df_account_value = environment.envs[0].save_asset_memory()
-            daily_returns = df_account_value["account_value"].pct_change().dropna()
+            # Notes: for paper trading environments like Alpaca or live trade tracking:
+            # df_account_value = environment.envs[0].save_asset_memory()
+            # replace with account_memory
 
-            mean_return = daily_returns.mean()
-            std_return = daily_returns.std()
-            sharpe = (252 ** 0.5) * mean_return / std_return if std_return != 0 else np.nan
+            if len(account_memory) < 2:
+                print("Not enough data to calculate Sharpe ratio.")
+                return float('nan')
 
-            print(f"\n📊 Sharpe Debug:")
-            print(f"  ➤ Mean return: {mean_return:.6f}")
-            print(f"  ➤ Std return : {std_return:.6f}")
-            print(f"  ➤ Sharpe     : {sharpe:.3f}")
+            daily_returns = pd.Series(account_memory).pct_change().dropna()
 
+            if daily_returns.std() == 0 or daily_returns.empty:
+                print(" Sharpe Debug: No volatility or data — returning NaN")
+                return float('nan')
+
+            sharpe = (252**0.5) * daily_returns.mean() / daily_returns.std()
+            print(" Sharpe Debug:")
+            print(f"  ➤Mean return: {daily_returns.mean():.5f}")
+            print(f"  Std return : {daily_returns.std():.5f}")
+            print(f"  Sharpe     : {sharpe:.5f}")
             return sharpe
         else:
-            df_result = environment.envs[0].save_asset_memory()
+            df_result = pd.DataFrame({
+                'date': range(len(account_memory)),
+                'account_value': account_memory
+            })
             return df_result
 
