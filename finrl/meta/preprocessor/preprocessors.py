@@ -151,10 +151,10 @@ class FeatureEngineer:
             df = self.add_technical_indicator(df)
             print("Successfully added technical indicators")
 
-        # add vix for multiple stock
-        if self.use_vix:
-            df = self.add_vix(df)
-            print("Successfully added vix")
+        # # add vix for multiple stock
+        # if self.use_vix:
+        #     df = self.add_vix(df)
+        #     print("Successfully added vix")
 
         # add turbulence index for multiple stock
         if self.use_turbulence:

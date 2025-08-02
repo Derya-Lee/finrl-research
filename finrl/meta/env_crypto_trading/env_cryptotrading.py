@@ -21,11 +21,9 @@ class CryptoTradingEnv(gym.Env):
         self.tech_indicator_list = tech_indicator_list if tech_indicator_list else ['macd', 'rsi_30', 'cci_30']
         self.action_space = spaces.Box(low=-1, high=1, shape=(self.crypto_dim,))
         obs_shape = 1 + 2 * self.crypto_dim + len(self.tech_indicator_list) * self.crypto_dim
+        
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(obs_shape,), dtype=np.float32)
-        # self.observation_space = spaces.Box(
-        #     low=-np.inf, high=np.inf, shape=(1 + 2 * self.crypto_dim + len(self.tech_indicator_list) * self.crypto_dim,)
-        # )
-
+        self.total_rewards = 0
         self.reset()
       
     def reset(self):
@@ -34,11 +32,12 @@ class CryptoTradingEnv(gym.Env):
         self.terminal = False
 
         self.cash = self.initial_amount
-        self.stocks = np.zeros(self.crypto_dim)  # no holdings at start
+        self.stocks = np.zeros(self.crypto_dim, dtype=float)  # no holdings at start
         self.total_asset = self.initial_amount
         self.asset_memory = [self.total_asset]
 
-        self.state = [self.total_asset] + \
+        # [self.total_asset] + list(self.stocks) + prices + indicators
+        self.state = [self.cash] + \
                     list(self.stocks) + \
                     self.data.close.values.tolist() + \
                     sum([self.data[tech].values.tolist() for tech in self.tech_indicator_list], [])
@@ -46,65 +45,83 @@ class CryptoTradingEnv(gym.Env):
         return np.array(self.state)
 
     def step(self, actions):
-        self.terminal = self.day >= len(self.df.date.unique()) - 1
-        if self.terminal:
-            return self.state, self._reward(), self.terminal, {}
+        if self.day >= len(self.df.date.unique()) - 1:
+            self.terminal = True
+
+            prices = self.data.close.values
+            self.total_asset = self.cash + np.sum(self.stocks * prices)
+            self.asset_memory.append(self.total_asset)
+
+            return np.array(self.state), 0, self.terminal, {}
 
         prices = self.data.close.values
         actions = actions * self.hmax
 
-        # === SELL ===
+        # SELL
         for i in np.where(actions < 0)[0]:
             sell_amount = min(self.stocks[i], -actions[i])
             self.stocks[i] -= sell_amount
             self.cash += prices[i] * sell_amount * (1 - self.sell_cost_pct)
 
-        # === BUY ===
+        # BUY
         for i in np.where(actions > 0)[0]:
             max_buy = self.cash // (prices[i] * (1 + self.buy_cost_pct))
             buy_amount = min(max_buy, actions[i])
             self.stocks[i] += buy_amount
             self.cash -= prices[i] * buy_amount * (1 + self.buy_cost_pct)
 
-        # === Advance to Next Day ===
+        # Advance
         self.day += 1
         self.data = self.df.loc[self.df.date == self.df.date.unique()[self.day]]
         prices = self.data.close.values
 
-        prev_asset = self.total_asset
-        self.total_asset = self.cash + np.sum(self.stocks * prices)
-        reward = (self.total_asset - prev_asset) * self.reward_scaling
+        self.total_asset = self.cash + np.sum(self.stocks * prices)  # <- optionally += 5000 for debug
+        reward = (self.total_asset - self.asset_memory[-1]) * self.reward_scaling
         self.asset_memory.append(self.total_asset)
 
-        self.state = [self.total_asset] + \
+        self.state = [self.cash] + \
                     list(self.stocks) + \
                     prices.tolist() + \
                     sum([self.data[tech].values.tolist() for tech in self.tech_indicator_list], [])
 
-        # === Optional Debug Logging ===
-       # print(f" Day {self.day} | Cash: {self.cash:.2f} | Stocks: {self.stocks.round(2)} | Asset: {self.total_asset:.2f} | Reward: {reward:.5f}")
-
+        self.terminal = False
         return np.array(self.state), reward, self.terminal, {}
 
 
-    def _get_total_asset(self):
-        return self.state[0]  # simply return current balance (can be expanded)
 
-    def _reward(self):
-        return self.asset_memory[-1] - self.asset_memory[0]
+    # def _get_total_asset(self):
+    #     prices = self.data.close.values
+    #     return self.cash + np.sum(self.stocks * prices)
 
+    # ** Executes trades based on action values - Positive action: Buy -  Negative action: Sell updating the account value on each step
+    # Assumes self.state = [cash, holdings..., prices..., indicators...]
+    # Prevents buying more than available cash allows.
+    # Updates both cash (self.state[0]) and holdings (self.state[1:1+self.crypto_dim]).
+    # Accumulates trading cost and trades count.
     def _trade(self, actions):
-        # Simplified logic for demonstration — can be expanded to simulate buying/selling
+        prices = self.data.close.values
+        actions = actions.astype(float)
+
+        # Scale actions to max trade size (hmax)
+        scaled_actions = actions * self.hmax
+
+        for i in range(self.crypto_dim):
+            action = scaled_actions[i]
+            price = prices[i]
+
+            # SELL
+            if action < 0:
+                sell_amount = min(abs(action), self.stocks[i])
+                self.cash += sell_amount * price * (1 - self.sell_cost_pct)
+                self.stocks[i] -= sell_amount
+
+            # BUY
+            elif action > 0:
+                max_buyable = self.cash // (price * (1 + self.buy_cost_pct))
+                buy_amount = min(action, max_buyable)
+                self.cash -= buy_amount * price * (1 + self.buy_cost_pct)
+                self.stocks[i] += buy_amount
+
+        # Optional: track trade cost for logging
         self.trades += 1
         self.cost += np.sum(np.abs(actions)) * self.buy_cost_pct
-        
-    def save_asset_memory(self):
-        """
-        Return account value over time for analysis.
-        """
-        date_list = list(self.df.date.unique())[:len(self.asset_memory)]
-        df_account_value = pd.DataFrame({
-            "date": date_list,
-            "account_value": self.asset_memory
-        })
-        return df_account_value

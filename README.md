@@ -22,6 +22,24 @@ Each rolling window follows this structure:
 - Then the window advances by 3 months.
 
 ---
+### Definitions of output values:
+- Sharpe Ratio: Risk-adjusted return.
+- Total Return: Percentage gain/loss over the trade window.
+- Volatility: Standard deviation of returns.
+- Max Drawdown: Maximum observed loss from a peak to a trough.
+- Final Account Value: Ending portfolio value after the trade window.
+
+---
+## Results files
+- include binance_less_raw.csv and binance_raw.csv, wherre less means reduced tokens required for development and testing ie.:
+binance_less_raw.csv :  ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT"]
+binance_raw.csv :  ["BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT"]
+
+- Earlist available data for tokens - (binance):
+BNB-USD   2017-11-06
+BTC-USD   2017-08-17
+ETH-USD   2017-08-17
+XRP-USD   2018-05-04
 
 ## 📄 Sample: `results/crypto_metrics.csv`
 

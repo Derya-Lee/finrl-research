@@ -35,33 +35,40 @@ class DRLAgent:
     def DRL_prediction(model, environment, evaluate=False):
         obs = environment.reset()
         account_memory = []
+        total_reward = 0
 
+        max_steps = len(environment.envs[0].df.date.unique())  # For last N debug
         step_counter = 0
         while True:
             action, _states = model.predict(obs)
             obs, reward, done, info = environment.step(action)
 
+            total_reward += float(reward)
             total_asset = environment.envs[0].total_asset  # tracked inside env
             account_memory.append(total_asset)
 
-            # Print debug for first 5 and last 5 steps only
-            if step_counter < 5 or done:
-                print(f" Step {step_counter + 1} | Asset: {total_asset:,.2f}")
+            # Print debug at beginning and end only
+            if step_counter < 5 or step_counter >= max_steps - 5:
+                print(f"{'[EVAL]' if evaluate else '[TRADE]'} Step {step_counter + 1} | Reward: {total_reward:,.2f} | Asset: {total_asset:,.2f}")
+              
             step_counter += 1
 
             if done:
                 break
 
+        print("[DEBUG] account_memory length:", len(account_memory))
+        print("[DEBUG] Last 5 values:", account_memory[-5:])
+        print("[DEBUG] total reward:", total_reward)
         # EVALUATE MODE — SHARPE CALCULATION
         if evaluate:
             if len(account_memory) < 2:
-                print(" Not enough data to calculate Sharpe ratio.")
+                print("[EVAL] Not enough data to calculate Sharpe ratio.")
                 return float('nan')
 
             daily_returns = pd.Series(account_memory).pct_change().dropna()
 
             if daily_returns.std() == 0 or daily_returns.empty:
-                print(" Sharpe Debug: No volatility or insufficient data.")
+                print("[EVAL] Sharpe Debug: No volatility or insufficient data.")
                 return float('nan')
 
             sharpe = (252**0.5) * daily_returns.mean() / daily_returns.std()
