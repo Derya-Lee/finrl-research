@@ -5,6 +5,7 @@ from stable_baselines3 import A2C, PPO, DDPG
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.noise import NormalActionNoise
+from finrl.utils.compute_sharpe_metrics import compute_sharpe_metrics
 
 class DRLAgent:
     def __init__(self, env):
@@ -32,58 +33,57 @@ class DRLAgent:
         return model
 
     @staticmethod
-    def DRL_prediction(model, environment, evaluate=False):
+    def DRL_evaluation(model, environment):
         obs = environment.reset()
         account_memory = []
         total_reward = 0
+        done = False
 
-        max_steps = len(environment.envs[0].df.date.unique())  # For last N debug
-        step_counter = 0
-        while True:
-            action, _states = model.predict(obs)
-            obs, reward, done, info = environment.step(action)
-
+        while not done:
+            action, _ = model.predict(obs)
+            obs, reward, done, _ = environment.step(action)
             total_reward += float(reward)
-            total_asset = environment.envs[0].total_asset  # tracked inside env
+            total_asset = environment.envs[0].total_asset 
             account_memory.append(total_asset)
 
-            # Print debug at beginning and end only
-            if step_counter < 5 or step_counter >= max_steps - 5:
-                print(f"{'[EVAL]' if evaluate else '[TRADE]'} Step {step_counter + 1} | Reward: {total_reward:,.2f} | Asset: {total_asset:,.2f}")
-              
-            step_counter += 1
+        result = compute_sharpe_metrics(account_memory)
+        return result
 
-            if done:
-                break
+            # if step_counter < 5 or step_counter >= max_steps - 5:
+            #     print(f"{'[TRADE]' if not evaluate else '[VALIDATION]'} Step {step_counter + 1} | "f"Reward (scaled): {reward} | Asset: {total_asset:,.2f}")
+    
+    @staticmethod
+    def DRL_prediction(model, environment, start_date):
+        obs = environment.reset()
+        done = False
+        account_memory = []
+        total_reward = 0
+        daily_records = []  # store daily metrics
 
-        print("[DEBUG] account_memory length:", len(account_memory))
-        print("[DEBUG] Last 5 values:", account_memory[-5:])
-        print("[DEBUG] total reward:", total_reward)
-        # EVALUATE MODE — SHARPE CALCULATION
-        if evaluate:
-            if len(account_memory) < 2:
-                print("[EVAL] Not enough data to calculate Sharpe ratio.")
-                return float('nan')
+        while not done:
+            action, _ = model.predict(obs)
+            obs, reward, done, _ = environment.step(action)
 
-            daily_returns = pd.Series(account_memory).pct_change().dropna()
+            env_inst = environment.envs[0]
+            date_today = env_inst.data.date.iloc[0]
+            trade_count = getattr(env_inst, "trade_count", 0) 
+            total_asset = env_inst.total_asset
+            total_reward += float(reward)
 
-            if daily_returns.std() == 0 or daily_returns.empty:
-                print("[EVAL] Sharpe Debug: No volatility or insufficient data.")
-                return float('nan')
+            # Simple volatility for the day (based on price change)
+            prices_today = env_inst.data.close.values
+            vol_today = np.std(prices_today) if len(prices_today) > 1 else 0
 
-            sharpe = (252**0.5) * daily_returns.mean() / daily_returns.std()
-            print(" Sharpe Debug:")
-            print(f"   Mean return: {daily_returns.mean():.5f}")
-            print(f"   Std return : {daily_returns.std():.5f}")
-            print(f"   Sharpe     : {sharpe:.5f}")
-            return sharpe
+            if not done:
+                # account_memory.append(total_asset)
+                daily_records.append({
+                    "date": date_today,
+                    "account_value": total_asset,
+                    "reward": float(reward),
+                    "daily_volatility": vol_today,
+                    "trade_count": trade_count
+                })
 
-        # PREDICTION MODE — RETURN FULL ACCOUNT VALUE DATAFRAME
-        else:
-            df_result = pd.DataFrame({
-                'date': range(len(account_memory)),
-                'account_value': account_memory
-            })
-            return df_result
+        df_daily = pd.DataFrame(daily_records)
 
-
+        return df_daily

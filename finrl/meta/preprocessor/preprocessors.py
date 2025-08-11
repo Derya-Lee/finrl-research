@@ -146,21 +146,21 @@ class FeatureEngineer:
         # clean data
         df = self.clean_data(df)
 
+        # Derya: replace for production to add crypto-specific accuracy, and more control
         # add technical indicators using stockstats
-        if self.use_technical_indicator:
-            df = self.add_technical_indicator(df)
-            print("Successfully added technical indicators")
+        # if self.use_technical_indicator:
+        #     df = self.add_technical_indicator(df)
+        #     print("Successfully added technical indicators")
+        print("TODO: must add technical indicators")
 
-        # # add vix for multiple stock
-        # if self.use_vix:
-        #     df = self.add_vix(df)
-        #     print("Successfully added vix")
 
         # add turbulence index for multiple stock
-        if self.use_turbulence:
-            df = self.add_turbulence(df)
-            print("Successfully added turbulence index")
-
+        # Derya: Replace to monitor for spikes in Mahalanobis distance between crypto returns or similar volatility
+        # if self.use_turbulence:
+        #     df = self.add_turbulence(df)
+        #     print("Successfully added turbulence index")
+        print("TODO: add volatility indicators")
+        
         # add user defined feature
         if self.user_defined_feature:
             df = self.add_user_defined_feature(df)

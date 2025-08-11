@@ -6,15 +6,15 @@ TRAINED_MODEL_DIR = "trained_models"
 TENSORBOARD_LOG_DIR = "tensorboard_log"
 RESULTS_DIR = "results"
 
-# date format: '%Y-%m-%d'
-TRAIN_START_DATE = "2020-05-04"  # first Monday in May 2020 right
-TRAIN_END_DATE = "2022-12-30"   # Up to 2022 year-end
+# date format: '%Y-%m-%d' # first Monday starts and ending before weekends (Thursday) can be used for day-of-week effect
+TRAIN_START_DATE = "2020-01-06"  
+TRAIN_END_DATE = "2022-12-30"   
 
-TEST_START_DATE = "2023-01-02" # first Monday of 2023
+TEST_START_DATE = "2023-01-02" 
 TEST_END_DATE = "2023-12-29"
 
 TRADE_START_DATE = "2024-01-01"
-TRADE_END_DATE = "2024-12-31"
+TRADE_END_DATE = "2024-12-26"
 
 # stockstats technical indicator column names
 # check https://pypi.org/project/stockstats/ for different names
