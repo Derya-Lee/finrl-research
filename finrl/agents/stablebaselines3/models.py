@@ -55,10 +55,17 @@ class DRLAgent:
     @staticmethod
     def DRL_prediction(model, environment, start_date):
         obs = environment.reset()
+        total_asset = environment.envs[0].cash  # should be 1,000,000
         done = False
-        account_memory = []
         total_reward = 0
-        daily_records = []  # store daily metrics
+        daily_records = []  # store daily metrics      
+        daily_records.append({
+            "date": start_date,
+            "account_value": total_asset,
+            "reward": 0.0,
+            "daily_volatility": 0.0,
+            "trade_count": 0
+        })
 
         while not done:
             action, _ = model.predict(obs)
@@ -70,6 +77,7 @@ class DRLAgent:
             total_asset = env_inst.total_asset
             total_reward += float(reward)
 
+ 
             # Simple volatility for the day (based on price change)
             prices_today = env_inst.data.close.values
             vol_today = np.std(prices_today) if len(prices_today) > 1 else 0
@@ -83,6 +91,7 @@ class DRLAgent:
                     "daily_volatility": vol_today,
                     "trade_count": trade_count
                 })
+
 
         df_daily = pd.DataFrame(daily_records)
 

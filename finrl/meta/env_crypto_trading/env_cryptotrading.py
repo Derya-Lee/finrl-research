@@ -15,6 +15,7 @@ class CryptoTradingEnv(gym.Env):
         self.crypto_dim = len(self.df['tic'].unique())
         self.hmax = hmax
         self.initial_amount = initial_amount
+        self.cash = initial_amount
         self.buy_cost_pct = buy_cost_pct
         self.sell_cost_pct = sell_cost_pct
         self.reward_scaling = reward_scaling
@@ -39,7 +40,6 @@ class CryptoTradingEnv(gym.Env):
         self.cash = self.initial_amount
         self.total_asset = self.initial_amount
         self.stocks = np.zeros(self.crypto_dim, dtype=float)
-
         self.asset_memory = [self.initial_amount]
 
         self.state = [self.cash] + \

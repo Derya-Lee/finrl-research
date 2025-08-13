@@ -13,7 +13,7 @@ import quantstats as qs
 from finrl import config
 from finrl.meta.data_processors.func import date2str
 from finrl.meta.data_processors.func import str2date
-from finrl.meta.preprocessor.yahoodownloader import YahooDownloader
+# from finrl.meta.preprocessor.yahoodownloader import YahooDownloader
 
 
 def get_daily_return(df, value_col_name="account_value"):
@@ -51,34 +51,34 @@ def backtest_stats_qs(account_value, value_col_name="account_value"):
     print("----------QuantStats Performance----------")
     return qs.reports.metrics(daily_return)
 
-def backtest_plot(
-    account_value,
-    baseline_start=config.TRADE_START_DATE,
-    baseline_end=config.TRADE_END_DATE,
-    baseline_ticker="^DJI",
-    value_col_name="account_value",
-):
-    df = deepcopy(account_value)
-    df["date"] = pd.to_datetime(df["date"])
-    test_returns = get_daily_return(df, value_col_name=value_col_name)
+# def backtest_plot(
+#     account_value,
+#     baseline_start=config.TRADE_START_DATE,
+#     baseline_end=config.TRADE_END_DATE,
+#     baseline_ticker="^DJI",
+#     value_col_name="account_value",
+# ):
+#     df = deepcopy(account_value)
+#     df["date"] = pd.to_datetime(df["date"])
+#     test_returns = get_daily_return(df, value_col_name=value_col_name)
 
-    baseline_df = get_baseline(
-        ticker=baseline_ticker, start=baseline_start, end=baseline_end
-    )
+#     baseline_df = get_baseline(
+#         ticker=baseline_ticker, start=baseline_start, end=baseline_end
+#     )
 
-    baseline_df["date"] = pd.to_datetime(baseline_df["date"], format="%Y-%m-%d")
-    baseline_df = pd.merge(df[["date"]], baseline_df, how="left", on="date")
-    baseline_df = baseline_df.fillna(method="ffill").fillna(method="bfill")
-    baseline_returns = get_daily_return(baseline_df, value_col_name="close")
+#     baseline_df["date"] = pd.to_datetime(baseline_df["date"], format="%Y-%m-%d")
+#     baseline_df = pd.merge(df[["date"]], baseline_df, how="left", on="date")
+#     baseline_df = baseline_df.fillna(method="ffill").fillna(method="bfill")
+#     baseline_returns = get_daily_return(baseline_df, value_col_name="close")
 
-    qs.reports.full(returns=test_returns, benchmark=baseline_returns)
-    # or qs.reports.html(returns=test_returns, benchmark=baseline_returns, output='report.html')
+#     qs.reports.full(returns=test_returns, benchmark=baseline_returns)
+#     # or qs.reports.html(returns=test_returns, benchmark=baseline_returns, output='report.html')
 
 
-def get_baseline(ticker, start, end):
-    return YahooDownloader(
-        start_date=start, end_date=end, ticker_list=[ticker]
-    ).fetch_data()
+# def get_baseline(ticker, start, end):
+#     return YahooDownloader(
+#         start_date=start, end_date=end, ticker_list=[ticker]
+#     ).fetch_data()
 
 
 def trx_plot(df_trade, df_actions, ticker_list):

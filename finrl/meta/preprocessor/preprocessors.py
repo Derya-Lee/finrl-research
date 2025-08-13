@@ -10,7 +10,7 @@ from sklearn.preprocessing import MaxAbsScaler
 from stockstats import StockDataFrame as Sdf
 
 from finrl import config
-from finrl.meta.preprocessor.yahoodownloader import YahooDownloader
+# from finrl.meta.preprocessor.yahoodownloader import YahooDownloader
 
 
 def load_dataset(*, file_name: str) -> pd.DataFrame:
@@ -148,9 +148,9 @@ class FeatureEngineer:
 
         # Derya: replace for production to add crypto-specific accuracy, and more control
         # add technical indicators using stockstats
-        # if self.use_technical_indicator:
-        #     df = self.add_technical_indicator(df)
-        #     print("Successfully added technical indicators")
+        if self.use_technical_indicator:
+            df = self.add_technical_indicator(df)
+            print("Successfully added technical indicators")
         print("TODO: must add technical indicators")
 
 
@@ -252,22 +252,22 @@ class FeatureEngineer:
         # df['return_lag_4']=df.close.pct_change(5)
         return df
 
-    def add_vix(self, data):
-        """
-        add vix from yahoo finance
-        :param data: (df) pandas dataframe
-        :return: (df) pandas dataframe
-        """
-        df = data.copy()
-        df_vix = YahooDownloader(
-            start_date=df.date.min(), end_date=df.date.max(), ticker_list=["^VIX"]
-        ).fetch_data()
-        vix = df_vix[["date", "close"]]
-        vix.columns = ["date", "vix"]
+    # def add_vix(self, data):
+    #     """
+    #     add vix from yahoo finance
+    #     :param data: (df) pandas dataframe
+    #     :return: (df) pandas dataframe
+    #     """
+    #     df = data.copy()
+    #     df_vix = YahooDownloader(
+    #         start_date=df.date.min(), end_date=df.date.max(), ticker_list=["^VIX"]
+    #     ).fetch_data()
+    #     vix = df_vix[["date", "close"]]
+    #     vix.columns = ["date", "vix"]
 
-        df = df.merge(vix, on="date")
-        df = df.sort_values(["date", "tic"]).reset_index(drop=True)
-        return df
+    #     df = df.merge(vix, on="date")
+    #     df = df.sort_values(["date", "tic"]).reset_index(drop=True)
+    #     return df
 
     def add_turbulence(self, data):
         """

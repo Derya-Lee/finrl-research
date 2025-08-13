@@ -6,15 +6,27 @@ TRAINED_MODEL_DIR = "trained_models"
 TENSORBOARD_LOG_DIR = "tensorboard_log"
 RESULTS_DIR = "results"
 
-# date format: '%Y-%m-%d' # first Monday starts and ending before weekends (Thursday) can be used for day-of-week effect
-TRAIN_START_DATE = "2020-01-06"  
-TRAIN_END_DATE = "2022-12-30"   
+# Full historical training
+# TRAIN_START_DATE = "2018-05-07"  
+# TRAIN_END_DATE   = "2021-12-31"
 
-TEST_START_DATE = "2023-01-02" 
-TEST_END_DATE = "2023-12-29"
+# # Validation period (hold-out test)
+# TEST_START_DATE  = "2022-01-01"
+# TEST_END_DATE    = "2022-12-31"
 
-TRADE_START_DATE = "2024-01-01"
-TRADE_END_DATE = "2024-12-26"
+# # Simulated deployment (trading)
+# TRADE_START_DATE = "2023-01-01"
+# TRADE_END_DATE   = "2023-12-31"
+
+
+TRAIN_START_DATE = "2020-05-04"  
+TRAIN_END_DATE = "2023-04-29"   
+
+TEST_START_DATE = "2023-04-30" 
+TEST_END_DATE = "2024-05-31"
+
+TRADE_START_DATE = "2024-06-01"
+TRADE_END_DATE = "2025-05-31"
 
 # stockstats technical indicator column names
 # check https://pypi.org/project/stockstats/ for different names
@@ -31,6 +43,31 @@ INDICATORS = [
 
 
 # Model Parameters
+# model_configs = {
+#     "A2C": {
+#         "n_steps": 128, "ent_coef": 0.005, "learning_rate": 0.0005
+#     },
+#     "PPO": {
+#         "ent_coef": 0.01, "n_steps": 2048, "learning_rate": 0.00025, "batch_size": 128
+#     },
+#     "DDPG": {
+#         "buffer_size": 20000, "learning_rate": 0.0001, "batch_size": 128
+#     }
+# }
+
+model_configs = {
+    "A2C": {
+        "n_steps": 5, "ent_coef": 0.0, "learning_rate": 0.0007
+    },
+    "PPO": {
+        "ent_coef": 0.01, "n_steps": 2048, "learning_rate": 0.00025, "batch_size": 128
+    },
+    "DDPG": {
+        "buffer_size": 10000, "learning_rate": 0.0005, "batch_size": 64
+    }
+}
+
+
 A2C_PARAMS = {"n_steps": 5, "ent_coef": 0.01, "learning_rate": 0.0007}
 PPO_PARAMS = {
     "n_steps": 2048,
