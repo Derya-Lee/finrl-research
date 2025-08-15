@@ -7,6 +7,7 @@ from finrl.pipeline.windows import run_training_windows
 from finrl.meta.preprocessor.preprocessors import FeatureEngineer
 from finrl.meta.preprocessor.binancedownloader import BinanceDownloader
 from finrl.meta.preprocessor.binancedownloader import BinanceDownloader
+from finrl.config import TRAIN_LEN, VAL_LEN, TRADE_LEN, TRAIN_START_DATE, TRADE_END_DATE
 
 
 
@@ -36,21 +37,18 @@ def test_deterministic_process() :
     if os.path.exists(data_path):
          df_processed.to_csv(dt_processed_path, index=False)
 
-    start_date = pd.Timestamp("2021-01-01")
-    end_date = start_date + pd.DateOffset(days=360)
+    start_date = pd.Timestamp(TRAIN_START_DATE)
+    end_date =  pd.Timestamp(TRADE_END_DATE)
 
-    start_date_str = start_date.strftime("%Y-%m-%d")
-    end_date_str = end_date.strftime("%Y-%m-%d")
-
-    # should be Start: 2021-01-01, End: 2021-06-30
-    print(f"Start: {start_date_str}, End: {end_date_str}")
+    # start_date_str = start_date.strftime("%Y-%m-%d")
+    # end_date_str = end_date.strftime("%Y-%m-%d")
 
     windows = get_rolling_windows(
-        train_months=1,
-        val_months=1,
-        trade_months=1,
-        start_date_str=start_date_str ,
-        end_date_str=end_date_str
+        train_months=TRAIN_LEN,
+        val_months=VAL_LEN,
+        trade_months=TRADE_LEN,
+        start_date_str=start_date ,
+        end_date_str=end_date
     )
 
     run_training_windows(windows, df_processed, results_path)

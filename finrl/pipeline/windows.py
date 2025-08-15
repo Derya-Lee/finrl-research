@@ -8,10 +8,10 @@ from finrl.meta.preprocessor.preprocessors import FeatureEngineer, data_split
 from finrl.meta.env_crypto_trading.env_cryptotrading import CryptoTradingEnv
 from finrl.agents.stablebaselines3.models import DRLAgent
 from finrl.plot.plot import get_daily_return  
-from finrl.config import model_configs
+from finrl.config import model_configs, LOOKBACK_DAYS
+from finrl.utils import adjust_window_dates
 
-
-def run_training_windows(windows, df_processed, results_path):
+def run_training_windows(windows, df_processed, results_path, loopback_days=0):
    
     val_results_path = os.path.join(results_path, "validation_metrix.csv")
     trade_results_path = os.path.join(results_path, "trading_metrix.csv")
@@ -29,7 +29,6 @@ def run_training_windows(windows, df_processed, results_path):
         train_data = data_split(df_processed, train_start, train_end)
         val_data = data_split(df_processed, val_start, val_end)
         trade_data = data_split(df_processed, trade_start, trade_end)
-        min_days_required = 30
         
         window_name = f"window_{i+1}"
         print(f" Rolling {window_name}: {train_start.date()} to {trade_end.date()}")
@@ -48,7 +47,7 @@ def run_training_windows(windows, df_processed, results_path):
 
         for name, model in models.items():
             env_val = DummyVecEnv([lambda: CryptoTradingEnv(val_data)])
-            sharpe_metrics = DRLAgent.DRL_evaluation(model=model, environment=env_val)
+            sharpe_metrics = DRLAgent.DRL_evaluation(model=model, environment=env_val, lookback_days=LOOKBACK_DAYS)
             sharpe = sharpe_metrics["sharpe"]
 
 
@@ -62,7 +61,7 @@ def run_training_windows(windows, df_processed, results_path):
         if best_model is not None:
                 startdt = pd.to_datetime(trade_start)
                 env_trade.envs[0].trading_mode = True
-                df_result = DRLAgent.DRL_prediction(model=best_model, environment=env_trade, start_date=startdt)
+                df_result = DRLAgent.DRL_prediction(model=best_model, environment=env_trade, start_date=startdt, lookback_days=LOOKBACK_DAYS)
 
                 df_result["window"] = i + 1
                 
@@ -82,13 +81,20 @@ def run_training_windows(windows, df_processed, results_path):
                 total_return = account_values.iloc[-1] / account_values.iloc[0] - 1
                 volatility = daily_returns.std()
                 max_drawdown = (account_values.cummax() - account_values).max() / account_values.cummax().max()
-
+                # adj_dates = adjust_window_dates(train_start, train_end, val_start, val_end, trade_start, trade_end)
+                # (
+                #     adj_train_start, adj_train_end, 
+                #     adj_val_start, adj_val_end, 
+                #     adj_trade_start, adj_trade_end
+                # ) = adj_dates
                 performance_log.append({
                         "agent": best_model.__class__.__name__,
                         "window": i + 1,
-                        "train_start": train_start.date(),
-                        "train_end": train_end.date(),
-                        "trade_start": trade_start.date(),
+                        "train_start": train_start.date() ,
+                        "train_end": train_end.date(), 
+                        "val_start": val_start.date() + pd.Timedelta(days= LOOKBACK_DAYS - 1),
+                        "val_end": val_end.date(),
+                        "trade_start": trade_start.date() + pd.Timedelta(days= LOOKBACK_DAYS - 1),
                         "trade_end": trade_end.date(),
                         "sharpe_ratio": sharpe,
                         "min_account_value": account_values.min(),
@@ -121,17 +127,6 @@ def run_training_windows(windows, df_processed, results_path):
         }
 
 
-
-
-    if val_report_metrics:
-        val_metrics = pd.DataFrame(val_report_metrics)
-        val_metrics.to_csv(val_results_path, index=False)
-        print(f"Metrics saved to", {val_results_path})
-        # display(val_report_metrics) - look for import matplotlib.pyplot as plt
-
-    else:
-        print("No validation report to analyze.")
-
     #  --- END - validation data reporting ---
 
     if performance_log:
@@ -143,8 +138,6 @@ def run_training_windows(windows, df_processed, results_path):
         df_metrics.to_csv(trade_results_path, index=False)
         print(f"Trade Metrics saved to", {trade_results_path})
 
-
-        # df_account_values_daily = pd.DataFrame(account_values_df)
         account_values_df.to_csv(daily_accounts_path, index=False)
         print(f"Daily account values saved to", {daily_accounts_path})
         

@@ -18,7 +18,7 @@ RESULTS_DIR = "results"
 # TRADE_START_DATE = "2023-01-01"
 # TRADE_END_DATE   = "2023-12-31"
 
-
+#60 days overlap onlly to use for features, not scoring
 TRAIN_START_DATE = "2020-05-04"  
 TRAIN_END_DATE = "2023-04-29"   
 
@@ -28,8 +28,37 @@ TEST_END_DATE = "2024-05-31"
 TRADE_START_DATE = "2024-06-01"
 TRADE_END_DATE = "2025-05-31"
 
-# stockstats technical indicator column names
-# check https://pypi.org/project/stockstats/ for different names
+LOOKBACK_DAYS= 30 # 45
+VOLATILITY= 14 #21
+
+LOOKBACK_DAYS= 60
+
+Turbulence_lookback_Train=60
+Turbulence_lookback_Val=60
+Turbulence_lookback_Trade=60
+Volatility_Window_Train=30
+Volatility_Window_Val=30
+Volatility_Window_Trade=14
+
+
+TRAIN_LEN = 6
+VAL_LEN = 2
+TRADE_LEN = 2
+
+
+
+#| Phase      | Period Length | Turbulence_lookback | Volatility_Window_TRain |
+#| ---------- | ------------- | -------------------------- | ----------------- |
+# | Train      | \~1090 days   | 60                         | 30                |
+# | Validation | \~397 days    | 60                         | 30                |
+# | Trade      | \~365 days    | 30–45                      | 14–21             |
+
+
+
+# train_months=6
+# val_months=2
+# trade_months=2
+
 INDICATORS = [
     "macd",
     "boll_ub",
@@ -40,6 +69,8 @@ INDICATORS = [
     "close_30_sma",
     "close_60_sma",
 ]
+
+
 
 
 # Model Parameters

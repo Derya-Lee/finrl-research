@@ -29,6 +29,9 @@ def data_split(df, start, end, target_date_col="date"):
     :param data: (df) pandas dataframe, start, end
     :return: (df) pandas dataframe
     """
+    start = pd.Timestamp(start)
+    end = pd.Timestamp(end)
+
     data = df[(df[target_date_col] >= start) & (df[target_date_col] < end)]
     data = data.sort_values([target_date_col, "tic"], ignore_index=True)
     data.index = data[target_date_col].factorize()[0]

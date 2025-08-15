@@ -54,12 +54,16 @@ class CryptoTradingEnv(gym.Env):
     # fixed: min and max don't match up with any account value: resolved, fresh download data if start date changes
 
     def step(self, actions):
-        # isTrading = self.trading_mode
-        # total_days = len(self.df.date.unique()) - 1
 
         prices = self.data.close.values
-        actions = actions * self.hmax
-        # TODO measure volume traded instead of just number of trades - help determine hmax in the future
+
+        # --- Dynamic hmax per asset ---
+        # Max units we could buy for each asset with available cash (scaled by self.hmax)
+        dynamic_hmax = np.floor((self.cash / (prices * (1 + self.buy_cost_pct))) * (self.hmax / 100))
+        # Apply dynamic limit to actions
+        actions = np.clip(actions, -1, 1) * dynamic_hmax
+        # ---------------------------------------------------
+
         trade_count = 0
 
         # SELL
@@ -93,17 +97,9 @@ class CryptoTradingEnv(gym.Env):
         reward = (self.total_asset - self.asset_memory[-1]) * self.reward_scaling
         self.asset_memory.append(self.total_asset)
 
-        # if isTrading and (self.day == 0 or self.day == total_days):
-        #     print(f"=== Day {self.day} ===")
-        #     print(f"Cash: {self.cash}")
-        #     print(f"Stocks: {self.stocks}")
-        #     print(f"Prices: {prices}")
-        #     print(f"Total Asset: {self.total_asset}")
-        #     print(f"Reward: {reward}")
-
         self.state = [self.cash] + list(self.stocks) + prices.tolist() 
-        # + [trade_count]
         return np.array(self.state), reward, self.terminal, {}
+
 
                     # TODO add later: (& update observation space)
                     # sum([self.data[tech].values.tolist() for tech in self.tech_indicator_list], [])
