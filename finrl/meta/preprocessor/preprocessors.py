@@ -8,8 +8,8 @@ from sklearn.base import BaseEstimator
 from sklearn.base import TransformerMixin
 from sklearn.preprocessing import MaxAbsScaler
 from stockstats import StockDataFrame as Sdf
-
 from finrl import config
+from finrl.utils import fear_and_greed
 # from finrl.meta.preprocessor.yahoodownloader import YahooDownloader
 
 
@@ -42,7 +42,6 @@ def convert_to_datetime(time):
     time_fmt = "%Y-%m-%dT%H:%M:%S"
     if isinstance(time, str):
         return datetime.datetime.strptime(time, time_fmt)
-
 
 class GroupByScaler(BaseEstimator, TransformerMixin):
     """Sklearn-like scaler that scales considering groups of data.
@@ -105,7 +104,6 @@ class GroupByScaler(BaseEstimator, TransformerMixin):
             )
         return X
 
-
 class FeatureEngineer:
     """Provides methods for preprocessing the stock price data
 
@@ -131,13 +129,13 @@ class FeatureEngineer:
         self,
         use_technical_indicator=True,
         tech_indicator_list=config.INDICATORS,
-        use_vix=False,
+        use_fear_greed=False,
         use_turbulence=False,
         user_defined_feature=False,
     ):
         self.use_technical_indicator = use_technical_indicator
         self.tech_indicator_list = tech_indicator_list
-        self.use_vix = use_vix
+        self.use_fear_greed = use_fear_greed
         self.use_turbulence = use_turbulence
         self.user_defined_feature = user_defined_feature
 
@@ -149,21 +147,15 @@ class FeatureEngineer:
         # clean data
         df = self.clean_data(df)
 
+        if self.use_fear_greed:
+            df = self.add_fear_greed(df)
         # Derya: replace for production to add crypto-specific accuracy, and more control
         # add technical indicators using stockstats
         if self.use_technical_indicator:
             df = self.add_technical_indicator(df)
             print("Successfully added technical indicators")
-        print("TODO: must add technical indicators")
-
-
-        # add turbulence index for multiple stock
-        # Derya: Replace to monitor for spikes in Mahalanobis distance between crypto returns or similar volatility
-        # if self.use_turbulence:
-        #     df = self.add_turbulence(df)
-        #     print("Successfully added turbulence index")
-        print("TODO: add volatility indicators")
-        
+        # print("TODO: must add technical indicators")
+       
         # add user defined feature
         if self.user_defined_feature:
             df = self.add_user_defined_feature(df)
@@ -172,15 +164,29 @@ class FeatureEngineer:
         # fill the missing values at the beginning and the end
         df = df.ffill().bfill()
         return df
+        
+    def add_fear_greed(self, ohlcv_df):
+ 
+        fng_df = fear_and_greed.get_fear_greed(limit=0)
+        fng_df.rename(columns={"timestamp": "date"}, inplace=True)
 
+        ohlcv_df["date"] = pd.to_datetime(ohlcv_df["date"]).dt.normalize()
+        fng_df["date"] = pd.to_datetime(fng_df["date"]).dt.normalize()
+
+    
+        df = ohlcv_df.merge(fng_df[["date", "fear_greed", "fear_greed_norm", "fear_greed_mapped"]], on="date", how="left")
+        df["fear_greed"] = df["fear_greed"].fillna(method="ffill")
+
+        return df
+    """
+    clean the raw data
+    deal with missing values
+    reasons: stocks could be delisted, not incorporated at the time step
+    :param data: (df) pandas dataframe
+    :return: (df) pandas dataframe
+    """
     def clean_data(self, data):
-        """
-        clean the raw data
-        deal with missing values
-        reasons: stocks could be delisted, not incorporated at the time step
-        :param data: (df) pandas dataframe
-        :return: (df) pandas dataframe
-        """
+
         df = data.copy()
         df = df.sort_values(["date", "tic"], ignore_index=True)
         # silently overwrites the DataFrame index with day-like integers causing the many-rows-per-day bug
@@ -254,86 +260,3 @@ class FeatureEngineer:
         # df['return_lag_3']=df.close.pct_change(4)
         # df['return_lag_4']=df.close.pct_change(5)
         return df
-
-    # def add_vix(self, data):
-    #     """
-    #     add vix from yahoo finance
-    #     :param data: (df) pandas dataframe
-    #     :return: (df) pandas dataframe
-    #     """
-    #     df = data.copy()
-    #     df_vix = YahooDownloader(
-    #         start_date=df.date.min(), end_date=df.date.max(), ticker_list=["^VIX"]
-    #     ).fetch_data()
-    #     vix = df_vix[["date", "close"]]
-    #     vix.columns = ["date", "vix"]
-
-    #     df = df.merge(vix, on="date")
-    #     df = df.sort_values(["date", "tic"]).reset_index(drop=True)
-    #     return df
-
-    def add_turbulence(self, data):
-        """
-        add turbulence index from a precalcualted dataframe
-        :param data: (df) pandas dataframe
-        :return: (df) pandas dataframe
-        """
-        df = data.copy()
-        turbulence_index = self.calculate_turbulence(df)
-        df = df.merge(turbulence_index, on="date")
-        df = df.sort_values(["date", "tic"]).reset_index(drop=True)
-        return df
-
-    def calculate_turbulence(self, data):
-        """calculate turbulence index based on dow 30"""
-        # can add other market assets
-        df = data.copy()
-        df_price_pivot = df.pivot(index="date", columns="tic", values="close")
-        # use returns to calculate turbulence
-        df_price_pivot = df_price_pivot.pct_change()
-
-        unique_date = df.date.unique()
-        # start after a year
-        start = 252
-        turbulence_index = [0] * start
-        # turbulence_index = [0]
-        count = 0
-        for i in range(start, len(unique_date)):
-            current_price = df_price_pivot[df_price_pivot.index == unique_date[i]]
-            # use one year rolling window to calcualte covariance
-            hist_price = df_price_pivot[
-                (df_price_pivot.index < unique_date[i])
-                & (df_price_pivot.index >= unique_date[i - 252])
-            ]
-            # Drop tickers which has number missing values more than the "oldest" ticker
-            filtered_hist_price = hist_price.iloc[
-                hist_price.isna().sum().min() :
-            ].dropna(axis=1)
-
-            cov_temp = filtered_hist_price.cov()
-            current_temp = current_price[[x for x in filtered_hist_price]] - np.mean(
-                filtered_hist_price, axis=0
-            )
-            # cov_temp = hist_price.cov()
-            # current_temp=(current_price - np.mean(hist_price,axis=0))
-
-            temp = current_temp.values.dot(np.linalg.pinv(cov_temp)).dot(
-                current_temp.values.T
-            )
-            if temp > 0:
-                count += 1
-                if count > 2:
-                    turbulence_temp = temp[0][0]
-                else:
-                    # avoid large outlier because of the calculation just begins
-                    turbulence_temp = 0
-            else:
-                turbulence_temp = 0
-            turbulence_index.append(turbulence_temp)
-        try:
-            turbulence_index = pd.DataFrame(
-                {"date": df_price_pivot.index, "turbulence": turbulence_index}
-            )
-        except ValueError:
-            raise Exception("Turbulence information could not be added.")
-        return turbulence_index

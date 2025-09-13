@@ -1,0 +1,8 @@
+
+31 August 2025
+
+archived after a fix using the reward as daily return
+fix made on the sheets
+fix made on the code (need double check)
+did not re-run & cont analysis on manual fix on the sheet (drive : Performance Metrics
+)

@@ -5,7 +5,7 @@ __pycache__/
 
 # Jupyter outputs
 .ipynb_checkpoints/
-*.csv
+# *.csv
 *.pkl
 *.h5
 
@@ -14,5 +14,9 @@ __pycache__/
 .venv/
 
 # Data + logs
-/data/
+# /data/
 logs/
+# /results/
+# /report/combine_data.py
+# /report/describe_data.py
+
