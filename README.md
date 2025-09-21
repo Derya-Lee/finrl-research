@@ -100,5 +100,50 @@ Helper functions for analysis and evaluation.
 
 ---
 
+
 ### 4. `Report/`  
-Helper data and functions for descriptive and regre
+Helper data and functions for descriptive and regression analysis.  
+
+- `data/` → derived datasets for reporting  
+- `results/` → outputs from analysis functions or notebooks  
+  - `combine_data.py`  
+  - `desc_analysis.py`  
+  - `describe_data.py`  
+- `utils/` → reusable helpers  
+  - `Comparison_analysis.py`  
+  - `Graphic_helpers.py`  
+  - `preprocessors.py`  
+  - `regression_common.py`  
+
+---
+
+### 5. `Results/`  
+CSV outputs from example and main experiment runs.  
+
+- **Example runs (`ensemble_research_short.ipynb`)**  
+  - `example_account_values.csv`  
+  - `example_ft_account_values.csv`  
+  - `example_sen_account_values.csv`  
+
+- **Main runs (`ensemble_research.ipynb`)**  
+  - `account_values.csv`  
+  - `ft_account_values.csv`  
+  - `sen_account_values.csv`  
+
+---
+
+## 🚀 Usage
+1. Start with data preparation (`Data/` → raw → processed).  
+2. Run experiments using `ensemble_research.ipynb` or the shorter test notebook.  
+3. Analyze outputs with `data_analysis.ipynb` or scripts in `Report/`.  
+4. Final results are written to `Results/` and used in dissertation figures and tables.  
+
+---
+
+## 📌 Notes
+- Phase 1 = Control (OHLCV only)  
+- Phase 2 = Risk-aware (volatility + turbulence)  
+- Phase 3 = Sentiment-aware (Fear & Greed index)  
+- Codebase deliberately simplified (fixed feature sets, reduced flexibility) to ensure experimental clarity.  
+
+---
