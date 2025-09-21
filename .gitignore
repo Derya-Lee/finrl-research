@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 
+notebooks/
+*.png
+
 # Jupyter outputs
 .ipynb_checkpoints/
 # *.csv
@@ -16,7 +19,7 @@ __pycache__/
 # Data + logs
 # /data/
 logs/
-# /results/
-# /report/combine_data.py
-# /report/describe_data.py
+
+report/combine_data.py
+
 

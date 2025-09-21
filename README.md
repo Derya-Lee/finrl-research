@@ -1,78 +1,104 @@
-## 📈 Ensemble Strategy for Cryptocurrency Trading Using Deep Reinforcement Learning
+# FinRL Research Guide
 
-This project implements a rolling-window **ensemble strategy** for trading cryptocurrencies using **Deep Reinforcement Learning (DRL)**. It is adapted from the paper:  
-📄 *"Deep Reinforcement Learning for Automated Stock Trading: An Ensemble Strategy" (Liu et al., 2020)*.
+This repository contains experiments and analysis conducted for the dissertation project on AI-driven trading systems.  
+It adapts and extends components of the **FinRL (refactored)** library for cryptocurrency trading research, with a focus on risk-aware and sentiment-aware feature integration.  
 
-The strategy trains and evaluates three DRL agents:
-- 🟦 PPO (Proximal Policy Optimization)
-- 🟨 A2C (Advantage Actor-Critic)
-- 🟥 DDPG (Deep Deterministic Policy Gradient)
+**source used**
+https://github.com/AI4Finance-Foundation/FinRL/tree/master
 
-Each agent is retrained in a rolling-window framework and evaluated based on **Sharpe ratio** during a validation window. The best-performing agent is used to trade in the following period.
+
+**To set your environment**
+Either use requirements_min.txt for minimal requirements or the full version requirements.txt 
+---
+
+## 📂 Project Structure
+
+### 1. `Data/`
+Input datasets used for both example runs and main experiments.
+
+- **Example experiments (input data)**
+  - `binance_data_raw_example.csv` → raw input
+  - `example_processed_bnc_data.csv` → processed OHLCV data
+  - `example_sentiment_bnc_data.csv` → sentiment features
+  - `example_voltur_bnc_data.csv` → volatility & turbulence features  
+
+- **Main experiments (input data)**
+  - `binance_data_raw.csv` → raw input
+  - `processed_bnc_data.csv` → processed OHLCV data
+  - `sentiment_bnc_data.csv` → sentiment features
+  - `voltur_bnc_data.csv` → volatility & turbulence features  
 
 ---
 
-### 📊 Rolling Window Evaluation
+### 2. `notebooks/`  
+Jupyter notebooks for experiments and data analysis.  
 
-Each rolling window follows this structure:
+- **Example (short runs)**  
+  - `ensemble_research_short.ipynb` → reduced settings for testing experiment parameters (dates, window length, etc.)  
 
-- **Training**: 6 months  
-- **Validation**: 2 months  
-- **Trading**: 2 months  
-- Then the window advances by 3 months.
-
----
-### Definitions of output values:
-- Sharpe Ratio: Risk-adjusted return.
-- Total Return: Percentage gain/loss over the trade window.
-- Volatility: Standard deviation of returns.
-- Max Drawdown: Maximum observed loss from a peak to a trough.
-- Final Account Value: Ending portfolio value after the trade window.
+- **Main notebooks**  
+  - `ensemble_research.ipynb` → full experiment runs, dissertation results  
+  - `data_analysis.ipynb` → descriptive and statistical analysis of experiment results  
 
 ---
-## Results files
-- include binance_less_raw.csv and binance_raw.csv, wherre less means reduced tokens required for development and testing ie.:
-binance_less_raw.csv :  ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT"]
-binance_raw.csv :  ["BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT"]
 
-- Earlist available data for tokens - (binance):
-BNB-USD   2017-11-06
-BTC-USD   2017-08-17
-ETH-USD   2017-08-17
-XRP-USD   2018-05-04
+### 3. `port_DRL_exp/`  
+Customized FinRL implementation for this project.  
+Only relevant modified files are listed here. Files not listed are unchanged and included for completeness/future extensions.  
 
-## 📄 Sample: `results/crypto_metrics.csv`
+#### a. `agents/stablebaseline3/models.py`
+- Contains **agent definitions** and functions for:
+  - `DRL_evaluation` (Phase 2 & 3): resets environment, runs trading over each window, calculates Sharpe ratio from total asset trajectory.  
+  - `DRL_prediction`: applies trained model to test windows, records daily results.  
 
-This file stores key evaluation metrics for each agent per rolling window, such as Sharpe ratio, returns, and drawdown.
+Trading process:  
+- Reset → unique environment per window.  
+- Each day: agent decides {buy, sell, hold} → executed on available cash & holdings.  
+- Asset trajectory recorded → performance metrics calculated.  
 
-```csv
-agent,window,train_start,train_end,trade_start,trade_end,sharpe_ratio,total_return,volatility,max_drawdown,final_account_value,asset_class
-DDPG,1,2020-05-04,2020-11-04,2021-01-04,2021-03-04,0.5327,0.4121,0.0832,0.1289,1411847.68,Crypto
-A2C,1,2020-05-04,2020-11-04,2021-01-04,2021-03-04,0.4795,0.3421,0.0785,0.1353,1342186.71,Crypto
-PPO,1,2020-05-04,2020-11-04,2021-01-04,2021-03-04,0.4228,0.3185,0.0752,0.1445,1319852.64,Crypto
-DDPG,2,2020-08-04,2021-02-04,2021-04-04,2021-06-04,0.5893,0.4578,0.0923,0.1171,1483294.10,Crypto
-A2C,2,2020-08-04,2021-02-04,2021-04-04,2021-06-04,0.4386,0.3789,0.0854,0.1256,1371625.35,Crypto
-PPO,2,2020-08-04,2021-02-04,2021-04-04,2021-06-04,0.4012,0.3124,0.0816,0.1323,1298154.76,Crypto
+---
 
+#### b. `meta/env_crypto_trading/env_cryptotrading.py`
+**Environment logic.**  
 
-### ✅ Results Summary (Sample Output)
+- **State**:  
+  - Always includes `cash + holdings (by token)`  
+  - Adds volatility & turbulence (Experiment 2) or sentiment (Experiment 3)  
+  - For baseline (Experiment 1): state includes OHLCV features only.  
 
-```plaintext
-Window 1
-  Train window: 2020-05-04 to 2020-11-04 — 184 days
-  Val window  : 2020-11-04 to 2021-01-04 — 61 days
-  Trade window: 2021-01-04 to 2021-03-04 — 59 days
-Using cpu device
-🔍 Sample PPO action: [[-0.1863538  -0.20843586]]
+- **Step() function**:  
+  - Chooses action (buy/sell/hold) per token  
+  - Executes trade, updates cash and holdings  
+  - Calculates reward for the day  
+  - Updates total asset = cash + mark-to-market holdings  
 
-📊 PPO Account Value Range: 1000000.00 to 1411847.68
-📈 PPO Sharpe Ratio: 0.4228
+⚠️ Hardcoded features ensure research clarity (less flexible than original FinRL, but avoids unintended inputs).  
 
-📊 A2C Account Value Range: 1000000.00 to 1342186.71
-📈 A2C Sharpe Ratio: 0.4795
+---
 
-📊 DDPG Account Value Range: 1000000.00 to 1387321.11
-📈 DDPG Sharpe Ratio: 0.5327
+#### c. `meta/preprocessors/`
+- `binancedownloader.py` → downloads Binance OHLCV data  
+- `preprocessors.py` → modified `FeatureEngineer` for crypto:  
+  - Cleans data (fills missing, factorizes dates)  
+  - Integrates Fear & Greed data  
+  - ⚠️ Technical indicators not included (out of scope)  
 
-🏆 Best model: DDPG with Sharpe 0.5327
-✅ Results saved to: `results/crypto_account_values.csv`
+---
+
+#### d. `utils/`
+Helper functions for analysis and evaluation.  
+
+- `calculate_turbulence_crypto.py` → turbulence index (Mahalanobis distance, rolling lookback)  
+- `compute_sharpe_metrics.py` → Sharpe ratio calculation  
+- `compute_sortino_ratio.py` → Sortino ratio calculation  
+- `daily_returns.py` → return calculation  
+- `fear_and_greed.py` → sentiment preprocessing  
+- `rolling_windows.py` → splits data into rolling windows  
+- `sentiment_scores.py` → maps raw Fear & Greed to categories  
+
+- `config.py` → experiment settings (date ranges, agents, hyperparameters)  
+
+---
+
+### 4. `Report/`  
+Helper data and functions for descriptive and regre

@@ -24,9 +24,7 @@ sen_stats_file_a =  os.path.join(results_path, "normalized_sen_stats.csv")
 sen_stats_file_b =  os.path.join(results_path, "mapped_sen_stats.csv") 
 
    
-#---------
-#
-#---------
+
 def generate_descriptive_stats():
     phase2_results = os.path.join(data_path, "ft_account_values.csv")
     phase3a_results = os.path.join(data_path, "sen_account_values_norm.csv")

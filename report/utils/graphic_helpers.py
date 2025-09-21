@@ -1,7 +1,7 @@
 import seaborn as sns
 import matplotlib.pyplot as plt
-
 import pandas as pd
+import numpy as np
 
 def plot_sharpe_across_phases(df, phase_col="phase", window_col="window", sharpe_col="sharpe_ann"):
     """
@@ -80,7 +80,6 @@ Phase 2 (risk-aware) and Phase 3 (sentiment-aware)
  =<2.99	very good
  =>3.0	excellent
 """
-import pandas as pd
 
 def categorize_sharpe(value: float) -> str:
     """Categorize Sharpe ratio based on standard thresholds."""
@@ -135,25 +134,171 @@ def summarize_sharpe_differences(df, phase_col="phase", window_col="window", sha
 
     return pd.DataFrame(summary)
 
-# def summarize_sharpe_differences(df, phase_col="phase", window_col="window", sharpe_col="sharpe_ann"):
-#     summary = []
-#     for w, group in df.groupby(window_col):
-#         diffs = group.set_index(phase_col)[sharpe_col]
-#         max_phase = diffs.idxmax()
-#         min_phase = diffs.idxmin()
-#         max_val = diffs.max()
-#         min_val = diffs.min()
-#         diff = max_val - min_val
-        
-#         if diff > 0.5:  # large gap
-#             summary.append((w, max_phase, min_phase, diff, "large difference"))
-#         elif diff < 0.2:  # convergence
-#             summary.append((w, None, None, diff, "similar"))
-#         else:
-#             summary.append((w, max_phase, min_phase, diff, "moderate difference"))
+from scipy.stats import pearsonr, spearmanr
+
+def plot_sentiment_vs_performance(sentiment, performance, metric_name="Max Drawdown", sentiment_name="Fear & Greed", windows=None):
+    """
+    Scatterplot of sentiment vs performance metric across windows, with regression line and correlation stats.
+
+    Parameters
+    ----------
+    sentiment : list or array
+        Window-level sentiment values (mean, median, IQR, etc.)
+    performance : list or array
+        Window-level performance metric (e.g., max_drawdown, sharpe)
+    metric_name : str
+        Label for the performance metric (used in title and y-axis label)
+    sentiment_name : str
+        Label for the sentiment measure (used in title and x-axis label)
+    windows : list or array, optional
+        Window numbers for labeling/coloring. If None, simple index is used.
+    """
+    if windows is None:
+        windows = np.arange(1, len(sentiment) + 1)
+
+    # Compute correlations
+    pearson_corr, pearson_p = pearsonr(sentiment, performance)
+    spearman_corr, spearman_p = spearmanr(sentiment, performance)
+
+    plt.figure(figsize=(8, 6))
+    scatter = sns.scatterplot(x=sentiment, y=performance, hue=windows, palette="viridis", s=80)
+
+    # regression line (linear fit)
+    sns.regplot(x=sentiment, y=performance, scatter=False, ci=None, color="red", line_kws={"linewidth": 2})
+
+    plt.xlabel(f"{sentiment_name} (per window)")
+    plt.ylabel(metric_name)
+    plt.title(f"{sentiment_name} vs {metric_name}")
+
+    # correlation annotation
+    plt.text(0.05, 0.95, 
+             f"Pearson r = {pearson_corr:.2f} (p={pearson_p:.3f})\nSpearman ρ = {spearman_corr:.2f} (p={spearman_p:.3f})",
+             transform=plt.gca().transAxes,
+             fontsize=10,
+             verticalalignment="top",
+             bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.6))
+
+    plt.legend(title="Window", bbox_to_anchor=(1.05, 1), loc="upper left")
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+
+
+
+def plot_sentiment_vs_performance_diff(sentiment, performance, metric_name="Max Drawdown", sentiment_name="Fear & Greed", windows=None):
+    """
+    Scatterplot of sentiment vs performance metric across windows, with regression line and correlation stats.
+
+    Parameters
+    ----------
+    sentiment : list or array
+        Window-level sentiment values (mean, median, IQR, etc.)
+    performance : list or array
+        Window-level performance metric (e.g., max_drawdown, sharpe)
+    metric_name : str
+        Label for the performance metric (used in title and y-axis label)
+    sentiment_name : str
+        Label for the sentiment measure (used in title and x-axis label)
+    windows : list or array, optional
+        Window numbers for labeling/coloring. If None, simple index is used.
+    """
+    if windows is None:
+        windows = np.arange(1, len(sentiment) + 1)
+
+    # Compute correlations
+    pearson_corr, pearson_p = pearsonr(sentiment, performance)
+    spearman_corr, spearman_p = spearmanr(sentiment, performance)
+
+    plt.figure(figsize=(8, 6))
+    scatter = sns.scatterplot(x=sentiment, y=performance, hue=windows, palette="viridis", s=80)
+
+    # regression line (linear fit)
+    sns.regplot(x=sentiment, y=performance, scatter=False, ci=None, color="red", line_kws={"linewidth": 2})
+
+    plt.xlabel(f"{sentiment_name} (per window)")
+    plt.ylabel(metric_name)
+    plt.title(f"{sentiment_name} vs {metric_name}")
+
+    # correlation annotation
+    plt.text(0.05, 0.95, 
+             f"Pearson r = {pearson_corr:.2f} (p={pearson_p:.3f})\nSpearman ρ = {spearman_corr:.2f} (p={spearman_p:.3f})",
+             transform=plt.gca().transAxes,
+             fontsize=10,
+             verticalalignment="top",
+             bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.6))
+
+    plt.legend(title="Window", bbox_to_anchor=(1.05, 1), loc="upper left")
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def categorize_fear_greed(norm_values, scale="0-1"):
+    """
+    Categorize normalized Fear & Greed values into Alternative.me categories.
     
-#     return pd.DataFrame(summary, columns=["window", "best_phase", "worst_phase", "diff", "category"])
+    Parameters
+    ----------
+    norm_values : pd.Series or array
+        Fear & Greed values normalized either to [0,1] or [-1,1].
+    scale : str
+        "0-1" if normalized to [0,1], "neg1-1" if normalized to [-1,1].
+    """
+    categories = []
+    for v in norm_values:
+        if scale == "0-1":
+            if v <= 0.24:
+                categories.append("Extreme Fear")
+            elif v <= 0.49:
+                categories.append("Fear")
+            elif v <= 0.74:
+                categories.append("Greed")
+            else:
+                categories.append("Extreme Greed")
+        elif scale == "neg1-1":
+            if v <= -0.52:
+                categories.append("Extreme Fear")
+            elif v <= -0.02:
+                categories.append("Fear")
+            elif v <= 0.48:
+                categories.append("Greed")
+            else:
+                categories.append("Extreme Greed")
+        else:
+            raise ValueError("scale must be '0-1' or 'neg1-1'")
+    return categories
 
 
-# Cumulative Return Trajectories
-# k-means
+def plot_drawdowns_by_sentiment(fg_values, drawdowns, scale="0-1"):
+    """
+    Plot distribution of drawdowns across Fear & Greed sentiment categories.
+
+    Parameters
+    ----------
+    fg_values : array-like
+        Normalized Fear & Greed values.
+    drawdowns : array-like
+        Max drawdown (or daily returns) aligned with fg_values.
+    scale : str
+        Normalization type ("0-1" or "neg1-1").
+    """
+    df = pd.DataFrame({
+        "FearGreed": fg_values,
+        "Drawdown": drawdowns
+    })
+    df["Category"] = categorize_fear_greed(df["FearGreed"], scale=scale)
+
+    plt.figure(figsize=(8,6))
+    sns.boxplot(x="Category", y="Drawdown", data=df, order=["Extreme Fear","Fear","Greed","Extreme Greed"])
+    sns.stripplot(x="Category", y="Drawdown", data=df, order=["Extreme Fear","Fear","Greed","Extreme Greed"],
+                  color="black", alpha=0.5, jitter=True)
+
+    plt.title("Drawdowns by Fear & Greed Category")
+    plt.ylabel("Max Drawdown (or Daily Return)")
+    plt.xlabel("Fear & Greed Category")
+    plt.show()
+
+    return df
