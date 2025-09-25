@@ -139,3 +139,42 @@ def compare_all_metrics(metrics_dict, windows=None, experiment_name=None, save_c
         summary_df.to_csv(csv_name, index=False)
     
     return summary_df
+
+
+def plot_window_comparison(df, win_a=14, win_b=5,
+                           date_col="date", 
+                           exp2_col="Exp_2_Account_Value", 
+                           exp3_col="Exp_3_Account_Value", 
+                           window_col="window"):
+    """
+    Plot Exp.2 vs Exp.3 % differences for two windows on the same chart.
+    Dates are shown as day counts (0, 1, 2, …) to keep the x-axis clean.
+    """
+
+    # Filter for each window
+    df_a = df[df[window_col] == win_a].copy()
+    df_b = df[df[window_col] == win_b].copy()
+
+    # Reset index to make day counts
+    df_a = df_a.reset_index(drop=True)
+    df_b = df_b.reset_index(drop=True)
+
+    # Calculate percentage difference (Exp.3 - Exp.2) / Exp.2
+    df_a["perc_diff"] = (df_a[exp3_col] - df_a[exp2_col]) / df_a[exp2_col] * 100
+    df_b["perc_diff"] = (df_b[exp3_col] - df_b[exp2_col]) / df_b[exp2_col] * 100
+
+    plt.figure(figsize=(10, 6))
+
+    # Plot both windows
+    plt.plot(df_a.index, df_a["perc_diff"], label=f"Window {win_a}", marker="o")
+    plt.plot(df_b.index, df_b["perc_diff"], label=f"Window {win_b}", marker="o")
+
+    plt.axhline(0, color="gray", linestyle="--", linewidth=1)
+
+    plt.xlabel("Day (relative to window start)")
+    plt.ylabel("Exp.3 vs Exp.2 Difference (%)")
+    plt.title(f"Comparison of Exp.3 vs Exp.2 Performance\nWindows {win_a} and {win_b}")
+    plt.legend()
+    plt.grid(True, linestyle="--", alpha=0.6)
+    plt.tight_layout()
+    plt.show()

@@ -70,6 +70,6 @@ def describe_summary():
 
 
 if __name__ == "__main__":
-    # generate_overview()
+    generate_overview()
     describe_summary()
 
